@@ -6,13 +6,13 @@ using OpenGloveApp.Droid;
 [assembly: Xamarin.Forms.Dependency(typeof(BluetoothManagerOG))]
 namespace OpenGloveApp.Droid
 {
-    public class BluetoothManager : IBluetoothManagerOG
+    public class BluetoothManagerOG : IBluetoothManagerOG
     {
         // Universally Unique Identifier
         private const string UUID = "1e966f42-52a8-45db-9735-5db0e21b881d";
         private BluetoothDevice mSocket;
 
-        public BluetoothManager()
+        public BluetoothManagerOG()
         {
         }
 

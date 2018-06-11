@@ -1,7 +1,9 @@
 ﻿using System;
 namespace OpenGloveApp
 {
-    public interface IBluetoothManager
+    public interface IBluetoothManagerOG
     {
+        void HelloWorld(string message);
+        void HelloWorld();
     }
 }

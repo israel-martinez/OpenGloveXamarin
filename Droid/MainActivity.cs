@@ -10,7 +10,7 @@ using Android.OS;
 
 namespace OpenGloveApp.Droid
 {
-    [Activity(Label = "OpenGloveApp.Droid", Icon = "@drawable/icon", Theme = "@style/MyTheme", MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation)]
+    [Activity(Label = "MainActivity.Droid", Icon = "@drawable/icon", Theme = "@style/MyTheme.Base", MainLauncher = false, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation)]
     public class MainActivity : global::Xamarin.Forms.Platform.Android.FormsAppCompatActivity
     {
         protected override void OnCreate(Bundle bundle)

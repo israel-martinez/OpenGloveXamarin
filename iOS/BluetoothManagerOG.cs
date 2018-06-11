@@ -5,9 +5,9 @@ using OpenGloveApp.iOS;
 [assembly: Xamarin.Forms.Dependency(typeof(BluetoothManagerOG))]
 namespace OpenGloveApp.iOS
 {
-    public class BluetoothManager : IBluetoothManagerOG
+    public class BluetoothManagerOG : IBluetoothManagerOG
     {
-        public BluetoothManager()
+        public BluetoothManagerOG()
         {
         }
 

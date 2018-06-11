@@ -13,7 +13,7 @@ using Android.Widget;
 
 namespace OpenGloveApp.Droid
 {
-    [Activity(Label = "SplashActivity")]
+    [Activity(Label= "OpenGlove", Icon = "@drawable/icon", Theme = "@style/MyTheme.Splash", MainLauncher = true, NoHistory = true)]
     public class SplashActivity : Activity
     {
         protected override void OnCreate(Bundle savedInstanceState)
@@ -21,6 +21,7 @@ namespace OpenGloveApp.Droid
             base.OnCreate(savedInstanceState);
 
             // Create your application here
+            StartActivity(typeof(MainActivity));
         }
     }
 }
