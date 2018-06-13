@@ -19,12 +19,29 @@
             <Label x:Name="label_bluetooth_status" Text="{Binding Value}"/>    
         </StackLayout>
 
+        <StackLayout Orientation="Horizontal">
+            <Label Text="Device to Connect: "/>
+            <Label x:Name="label_bluetooth_connect" Text="{Binding Value}"/>    
+        </StackLayout>
+
         <Button
             Text="Find bluetooth devices"
-            Clicked="Handle_Clicked"/>
+            Clicked="ShowBoundedDevices_Clicked"/>
 
         <Button
             Text="Status"
             Clicked="Status_Clicked"/>
+
+        <ListView x:Name="listViewBoundedDevices" 
+                  HasUnevenRows="true"
+                  ItemTapped="Handle_ItemTappedAsync"
+                  ItemSelected="Handle_ItemSelected">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <TextCell Text="{Binding Name}" Detail="{Binding Address}"/>    
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+            
     </StackLayout>
 </ContentPage>

@@ -1,84 +1,42 @@
 ﻿using Xamarin.Forms;
-using Plugin.BLE.Abstractions.Contracts;
-using System.Collections.ObjectModel;
-using Plugin.BLE;
 using System.Diagnostics;
+using System.Collections.ObjectModel;
+using OpenGloveApp.Models;
 
 namespace OpenGloveApp
 {
     public partial class OpenGloveAppPage : ContentPage
     {
-        IBluetoothLE mBluetoothLE;
-        IAdapter mAdapter;
-        ObservableCollection<IDevice> mDeviceList;
-        ObservableCollection<string> mSampleList;
-
+        
         public OpenGloveAppPage()
         {
             InitializeComponent();
-            mBluetoothLE = CrossBluetoothLE.Current;
-            mAdapter = CrossBluetoothLE.Current.Adapter;
-            mDeviceList = new ObservableCollection<IDevice>();
-            mSampleList = new ObservableCollection<string>();
-            mSampleList.Add("First element");
-            mSampleList.Add("Second element");
-            mSampleList.Add("Third element");
-
-            label_bluetooth_status.Text = mBluetoothLE.State.ToString();
-
-            mBluetoothLE.StateChanged += (s, e) =>
-            {
-                label_bluetooth_status.Text = mBluetoothLE.State.ToString();
-                Debug.WriteLine($"The bluetooth state changed to {e.NewState}");
-            };
-
-            DependencyService.Get<IBluetoothManagerOG>().HelloWorld();
         }
 
-        void Handle_Clicked(object sender, System.EventArgs e)
+        void ShowBoundedDevices_Clicked(object sender, System.EventArgs e)
         {
-            //GetSystemDevices();
-            //DisplayAlert("Connection", "Trying connected whit device", "Ok");
-            ScanForDevicesAsync();
+            listViewBoundedDevices.ItemsSource = DependencyService.Get<IBluetoothManagerOG>().GetAllPairedDevices();
         }
 
         void Status_Clicked(object sender, System.EventArgs e)
-        {   
-            var state = mBluetoothLE.State;
-            DisplayAlert("Bluetooth status", state.ToString(), "Ok");
-
-            ShowDeviceList();
-            GetSystemDevices();
-
-            Debug.WriteLine($"mSampleList: Count: {mSampleList.Count}");
-        }
-
-        void ShowDeviceList()
         {
-            Debug.WriteLine($"System Devices List Count: {mDeviceList.Count}");
-            foreach (IDevice device in mDeviceList)
-            {
-                Debug.WriteLine($"Name: {device.Name} GUID: {device.Id}");
-            }
+            var helloWorld = DependencyService.Get<IBluetoothManagerOG>().HelloWorld();
+            DisplayAlert("Hello world sample",helloWorld,"OK");
+
         }
 
-        void GetSystemDevices()
+        void Handle_ItemSelected(object sender, SelectedItemChangedEventArgs e)
         {
-            var systemDevices = mAdapter.GetSystemConnectedOrPairedDevices();
-            Debug.WriteLine($"Get System Devices Count: {systemDevices.Count}");
-            foreach (IDevice device in systemDevices)
-            {
-                //await _adapter.ConnectToDeviceAsync(device);
-                Debug.WriteLine($"Name: {device.Name} GUID: {device.Id}");
-            }
+            listViewBoundedDevices.SelectedItem = null;
         }
 
-        async void ScanForDevicesAsync()
+        async void Handle_ItemTappedAsync(object sender, ItemTappedEventArgs e)
         {
-            mAdapter.DeviceDiscovered += (s, a) => mDeviceList.Add(a.Device);
-            await mAdapter.StartScanningForDevicesAsync();
+            var device = e.Item as BluetoothDeviceModel;
+            bool connect = await DisplayAlert("Try Connecting", $" Device: {device.Name} \n MAC Address: {device.Address}", "Connect","Cancel");
+            //Blocking call
+            if(connect)
+                DependencyService.Get<IBluetoothManagerOG>().OpenDeviceConnection(device);
         }
-
-
     }
 }
