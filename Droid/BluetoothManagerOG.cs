@@ -116,7 +116,7 @@ namespace OpenGloveApp.Droid
             private BufferedInputStream mmBufferedStream;
             private MessageGenerator mMessageGenerator = new MessageGenerator();
 
-            private Android.OS.Handler mHandler;
+            private MyHandler mHandler;
 
             // Vibe board: +11 y -12
             Collection<int> mPins = new Collection<int> { 11, 12 };
@@ -126,8 +126,20 @@ namespace OpenGloveApp.Droid
             // Flexor pins: 17 and  + and -
             Collection<int> mFlexorPins = new Collection<int> { 17 };
             Collection<int> mFlexorMapping = new Collection<int> { 8 };
-            Collection<string> mFlexorPinsMode = new Collection<string> {"OUTPUT"};
-          
+            Collection<string> mFlexorPinsMode = new Collection<string> { "OUTPUT" };
+
+            private class MyHandler : Android.OS.Handler
+            {
+                public MyHandler(Android.OS.Looper looper) : base(Android.OS.Looper.MainLooper)
+                {
+                    
+                }
+                public override void HandleMessage(Android.OS.Message msg)
+                {   
+                    base.HandleMessage(msg);
+                    Debug.WriteLine($"Obj: {msg.Obj}");
+                }
+            }
 
             public ConnectedThread(BluetoothSocket bluetoothSocket)
             {
@@ -137,6 +149,8 @@ namespace OpenGloveApp.Droid
                     mmInputStream = new StreamReader(mmSocket.InputStream);
                     mmOutputStream = mmSocket.OutputStream;
                     mmBufferedStream = new BufferedInputStream(mmSocket.InputStream);
+
+                    mHandler = new MyHandler(Android.OS.Looper.MainLooper);
 
                 }
                 catch(System.IO.IOException e)
@@ -167,14 +181,19 @@ namespace OpenGloveApp.Droid
                     Debug.WriteLine(e.Message);
                 }
 
-                // Keep listening to the InputStream until an exception occurs
+                // Keep listening to the InputStream whit a StreamReader until an exception occurs
                 string line;
+                int  READ_PIN = 2;
                 while (true){
                     try
                     {
                         line = AnalogRead(mFlexorPins[0]);
-                        if (line != null) Debug.WriteLine($"Flexor pin {mFlexorPins[0]}: {line}");
-                        line = null;
+                        if (line != null)
+                        {
+                            Debug.WriteLine($"Flexor pin {mFlexorPins[0]}: {line}");
+                            Android.OS.Message message = MainActivity.mUIHandler.ObtainMessage(READ_PIN, line);
+                            message.SendToTarget();
+                        }
                     }
                     catch(System.IO.IOException e)
                     {

@@ -22,7 +22,6 @@ namespace OpenGloveApp
         {
             var helloWorld = DependencyService.Get<IBluetoothManagerOG>().HelloWorld();
             DisplayAlert("Hello world sample",helloWorld,"OK");
-
         }
 
         void Handle_ItemSelected(object sender, SelectedItemChangedEventArgs e)
