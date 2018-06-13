@@ -3,10 +3,12 @@ using System.Collections;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using Android.Bluetooth;
 using Java.IO;
 using OpenGloveApp.Droid;
 using OpenGloveApp.Models;
+using OpenGloveApp.OpenGloveAPI;
 
 [assembly: Xamarin.Forms.Dependency(typeof(BluetoothManagerOG))]
 namespace OpenGloveApp.Droid
@@ -17,17 +19,11 @@ namespace OpenGloveApp.Droid
         private const string mUUID = "1e966f42-52a8-45db-9735-5db0e21b881d";
         private BluetoothAdapter mBluetoothAdapter;
         private BluetoothDevice mDevice;
-        private BluetoothSocket mSocket;
-        private InputStreamReader mInputStreamReader;
-        private BufferedReader mReader;
-        private Stream mStream;
-        private OutputStream mOutStream;
         private Collection<BluetoothDeviceModel> mBoundedDevicesModel;
         private Hashtable mBoundedDevices = new Hashtable();
 
         public BluetoothManagerOG()
         {
-            mInputStreamReader = null;
             mBoundedDevicesModel = new Collection<BluetoothDeviceModel>();
             mBluetoothAdapter = BluetoothAdapter.DefaultAdapter;
         }
@@ -44,49 +40,12 @@ namespace OpenGloveApp.Droid
             {
                 aConnectedObject.Dispose();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 throw e;
             }
             aConnectedObject = null;
         }
-
-        public string GetDataFromDevice()
-        {
-            return mReader.Read().ToString();
-        }
-        /*
-        public bool OpenDeviceConnection(BluetoothDeviceModel deviceModel)
-        {
-            bool connected = false;
-            Thread thread = new Thread(() =>
-            {
-                try 
-                {
-                    BluetoothDevice device = mBoundedDevices[deviceModel.Name] as BluetoothDevice;
-                    mSocket = device.CreateRfcommSocketToServiceRecord(GetUUID());
-                    mSocket.Connect(); // Blocking operation
-                    mStream = mSocket.InputStream;
-                    mInputStreamReader = new InputStreamReader(mStream);
-                    mReader = new BufferedReader(mInputStreamReader);
-                    connected = true;
-                } 
-                catch (System.IO.IOException e)
-                {
-                    Close(mSocket);
-                    Close(mStream);
-                    Close(mReader);
-                    connected = false;
-                    throw e;
-                }
-            });
-
-            thread.IsBackground = true;
-            thread.Start();
-
-            return connected;
-        }
-        */
 
         public void OpenDeviceConnection(BluetoothDeviceModel bluetoothDevice)
         {
@@ -103,22 +62,22 @@ namespace OpenGloveApp.Droid
 
             public ConnectThread(BluetoothDevice device)
             {
-                BluetoothSocket temporalSocket = null;
+                BluetoothSocket auxSocket = null;
                 mmDevice = device;
 
                 try
                 {
                     Java.Util.UUID uuid = Java.Util.UUID.FromString(mUUID);
-                    temporalSocket = (BluetoothSocket)mmDevice.Class.GetMethod("createRfcommSocket", new Java.Lang.Class[] {Java.Lang.Integer.Type}).Invoke(mmDevice,1);
+                    auxSocket = (BluetoothSocket)mmDevice.Class.GetMethod("createRfcommSocket", new Java.Lang.Class[] { Java.Lang.Integer.Type }).Invoke(mmDevice, 1);
                     Debug.WriteLine("BluetoothSocket: CREATED");
                     Debug.WriteLine($"Name: {device.Name}, Address: {device.Address}");
                 }
-                catch(Java.IO.IOException e)
+                catch (Java.IO.IOException e)
                 {
                     Debug.WriteLine("BluetoothSocket: NOT CREATED");
                     e.PrintStackTrace();
                 }
-                mmSocket = temporalSocket;
+                mmSocket = auxSocket;
             }
 
             override
@@ -134,18 +93,136 @@ namespace OpenGloveApp.Droid
                     // until it succeeds or throws an exception
                     mmSocket.Connect();
                     Debug.WriteLine("BluetoothSocket: CONNECTED");
+                    // Do work to manage the connection (in a separate thread)
+                    // TODO manageConnectedSocket(mmSocket);
+                    ConnectedThread connectedThread = new ConnectedThread(mmSocket);
+                    connectedThread.Start();
                 }
-                catch(Java.IO.IOException e)
+                catch (Java.IO.IOException e)
                 {
                     mmSocket.Close();
                     Debug.WriteLine("BluetoothSocket: NOT CONNECTED");
                     e.PrintStackTrace();
                 }
+            }
+        }
 
-                // Do work to manage the connection (in a separate thread)
-                // TODO manageConnectedSocket(mmSocket);
-                //ConnectedThread connectedThread = new ConnectedThread(mmSocket);
-                //connectedThread.start();
+
+        private class ConnectedThread : Java.Lang.Thread
+        {
+            private BluetoothSocket mmSocket;
+            private StreamReader mmInputStream;
+            private Stream mmOutputStream;
+            private BufferedInputStream mmBufferedStream;
+            private MessageGenerator mMessageGenerator = new MessageGenerator();
+
+            private Android.OS.Handler mHandler;
+
+            // Vibe board: +11 y -12
+            Collection<int> mPins = new Collection<int> { 11, 12 };
+            Collection<string> mValuesON = new Collection<string> { "HIGH", "LOW" };
+            Collection<string> mValuesOFF = new Collection<string> { "LOW", "LOW" };
+
+            // Flexor pins: 17 and  + and -
+            Collection<int> mFlexorPins = new Collection<int> { 17 };
+            Collection<int> mFlexorMapping = new Collection<int> { 8 };
+            Collection<string> mFlexorPinsMode = new Collection<string> {"OUTPUT"};
+          
+
+            public ConnectedThread(BluetoothSocket bluetoothSocket)
+            {
+                mmSocket = bluetoothSocket;
+                try
+                {
+                    mmInputStream = new StreamReader(mmSocket.InputStream);
+                    mmOutputStream = mmSocket.OutputStream;
+                    mmBufferedStream = new BufferedInputStream(mmSocket.InputStream);
+
+                }
+                catch(System.IO.IOException e)
+                {
+                    mmInputStream.Close();
+                    mmOutputStream.Close();
+                    mmBufferedStream.Close();
+                    Debug.WriteLine(e.Message);
+                }
+            }
+
+            override
+            public void Run(){
+                //TODO: capture data from bluetooth device
+                try
+                {
+                    Debug.WriteLine($"CONNECTED THREAD {this.Id}: Initializing motors");
+                    string message = mMessageGenerator.InitializeMotor(mPins);
+                    this.Write(message);
+
+                    Debug.WriteLine($"CONNECTED THREAD {this.Id}: Activating motors");
+                    message = mMessageGenerator.ActivateMotor(mPins, mValuesON);
+                    this.Write(message);
+                }
+                catch(System.IO.IOException e)
+                {
+                    Debug.WriteLine($"CONNECTED THREAD {this.Id}: Failed on Run()");
+                    Debug.WriteLine(e.Message);
+                }
+
+                // Keep listening to the InputStream until an exception occurs
+                string line;
+                while (true){
+                    try
+                    {
+                        line = AnalogRead(mFlexorPins[0]);
+                        if (line != null) Debug.WriteLine($"Flexor pin {mFlexorPins[0]}: {line}");
+                        line = null;
+                    }
+                    catch(System.IO.IOException e)
+                    {
+                        Debug.WriteLine(e.Message);
+                    }
+                }
+
+            }
+
+            public string AnalogRead(int pin)
+            {
+                string message = mMessageGenerator.AnalogRead(pin);
+                this.Write(message);
+
+                try
+                {
+                    return mmInputStream.ReadLine();
+                }
+                catch (System.IO.IOException e)
+                {
+                    Debug.WriteLine(e.Message);
+                    return null;
+                }
+            }
+
+            public void Write(string message)
+            {
+                try
+                {
+                    byte[] bytes = Encoding.ASCII.GetBytes(message);
+                    mmOutputStream.Write(bytes, 0, bytes.Length);
+                }
+                catch(System.IO.IOException e)
+                {
+                    Debug.WriteLine(e.Message);
+                }
+            }
+
+            public void Close()
+            {
+                try
+                {
+                    mmSocket.Close();
+                }
+                catch(Java.IO.IOException e)
+                {
+                    Debug.WriteLine(e.Message);
+                }
             }
         }
 

@@ -9,7 +9,6 @@ namespace OpenGloveApp
         void HelloWorld(string message); 
         string HelloWorld(); //Sample flow 
         Collection<BluetoothDeviceModel> GetAllPairedDevices();
-        string GetDataFromDevice();
         void OpenDeviceConnection(BluetoothDeviceModel bluetoothDevice);
     }
 }

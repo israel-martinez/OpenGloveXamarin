@@ -13,11 +13,6 @@ namespace OpenGloveApp.iOS
         {
         }
 
-        public string GetDataFromDevice()
-        {
-            throw new NotImplementedException();
-        }
-
         public void HelloWorld(string message)
         {
             Debug.WriteLine(message);

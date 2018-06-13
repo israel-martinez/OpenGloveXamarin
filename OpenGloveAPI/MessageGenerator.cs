@@ -8,7 +8,7 @@ namespace OpenGloveApp.OpenGloveAPI
     /// <summary>
     /// Provide methods to generate communication message with the glove, following the OpenGlove communication protocol
     /// </summary>
-    class MessageGenerator
+    public class MessageGenerator
     {
         /// <summary>
         /// Symbol that separate digits in the message
