@@ -52,6 +52,7 @@
     <Compile Include="OpenGloveAppPage.xaml.cs">
       <DependentUpon>OpenGloveAppPage.xaml</DependentUpon>
     </Compile>
+    <Compile Include="EventHandlers\BluetoothEventHandler.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Xamarin.Forms.Core">
@@ -71,6 +72,7 @@
     <Folder Include="OpenGloveAPI\" />
     <Folder Include="Models\" />
     <Folder Include="Pages\" />
+    <Folder Include="EventHandlers\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <Import Project="packages\Xamarin.Forms.3.0.0.482510\build\netstandard1.0\Xamarin.Forms.targets" Condition="Exists('packages\Xamarin.Forms.3.0.0.482510\build\netstandard1.0\Xamarin.Forms.targets')" />

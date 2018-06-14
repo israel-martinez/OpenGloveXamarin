@@ -9,6 +9,7 @@ using Java.IO;
 using OpenGloveApp.Droid;
 using OpenGloveApp.Models;
 using OpenGloveApp.OpenGloveAPI;
+using Xamarin.Forms;
 
 [assembly: Xamarin.Forms.Dependency(typeof(BluetoothManagerOG))]
 namespace OpenGloveApp.Droid
@@ -47,10 +48,10 @@ namespace OpenGloveApp.Droid
             aConnectedObject = null;
         }
 
-        public void OpenDeviceConnection(BluetoothDeviceModel bluetoothDevice)
+        public void OpenDeviceConnection(ContentPage contentPage, BluetoothDeviceModel bluetoothDevice)
         {
             mDevice = mBoundedDevices[bluetoothDevice.Name] as BluetoothDevice;
-            ConnectThread connectThread = new ConnectThread(mDevice);
+            ConnectThread connectThread = new ConnectThread(contentPage, mDevice);
             connectThread.Start();
         }
 
@@ -59,11 +60,13 @@ namespace OpenGloveApp.Droid
             private BluetoothSocket mmSocket;
             private BluetoothDevice mmDevice;
             private BluetoothAdapter mmBluetoothAdapter;
+            private ContentPage mmContentPage;
 
-            public ConnectThread(BluetoothDevice device)
+            public ConnectThread(ContentPage contentPage, BluetoothDevice device)
             {
                 BluetoothSocket auxSocket = null;
                 mmDevice = device;
+                mmContentPage = contentPage;
 
                 try
                 {
@@ -95,7 +98,7 @@ namespace OpenGloveApp.Droid
                     Debug.WriteLine("BluetoothSocket: CONNECTED");
                     // Do work to manage the connection (in a separate thread)
                     // TODO manageConnectedSocket(mmSocket);
-                    ConnectedThread connectedThread = new ConnectedThread(mmSocket);
+                    ConnectedThread connectedThread = new ConnectedThread(mmContentPage, mmSocket);
                     connectedThread.Start();
                 }
                 catch (Java.IO.IOException e)
@@ -110,55 +113,81 @@ namespace OpenGloveApp.Droid
 
         private class ConnectedThread : Java.Lang.Thread
         {
+            // Event for send data to UI thread on Main Xamarin.Forms project
+            public event EventHandler<BluetoothEventArgs> BluetoothDataReceived;
+
             private BluetoothSocket mmSocket;
-            private StreamReader mmInputStream;
+            private StreamReader mmInputStreamReader;
             private Stream mmOutputStream;
-            private BufferedInputStream mmBufferedStream;
             private MessageGenerator mMessageGenerator = new MessageGenerator();
+            private Collection<int> mFlexorPins = new Collection<int> { 17 }; //TODO get this from OpenGloveApp
 
-            private MyHandler mHandler;
-
-            // Vibe board: +11 y -12
-            Collection<int> mPins = new Collection<int> { 11, 12 };
-            Collection<string> mValuesON = new Collection<string> { "HIGH", "LOW" };
-            Collection<string> mValuesOFF = new Collection<string> { "LOW", "LOW" };
-
-            // Flexor pins: 17 and  + and -
-            Collection<int> mFlexorPins = new Collection<int> { 17 };
-            Collection<int> mFlexorMapping = new Collection<int> { 8 };
-            Collection<string> mFlexorPinsMode = new Collection<string> { "OUTPUT" };
-
-            private class MyHandler : Android.OS.Handler
-            {
-                public MyHandler(Android.OS.Looper looper) : base(Android.OS.Looper.MainLooper)
-                {
-                    
-                }
-                public override void HandleMessage(Android.OS.Message msg)
-                {   
-                    base.HandleMessage(msg);
-                    Debug.WriteLine($"Obj: {msg.Obj}");
-                }
-            }
-
-            public ConnectedThread(BluetoothSocket bluetoothSocket)
+            public ConnectedThread(ContentPage contentPage, BluetoothSocket bluetoothSocket)
             {
                 mmSocket = bluetoothSocket;
                 try
                 {
-                    mmInputStream = new StreamReader(mmSocket.InputStream);
+                    mmInputStreamReader = new StreamReader(mmSocket.InputStream);
                     mmOutputStream = mmSocket.OutputStream;
-                    mmBufferedStream = new BufferedInputStream(mmSocket.InputStream);
 
-                    mHandler = new MyHandler(Android.OS.Looper.MainLooper);
+                    //subscribe UI thread on this especific ConnectedThread for get data
+                    this.BluetoothDataReceived += ((OpenGloveAppPage)contentPage).OnBluetoothMessage; //UI thread subscribe to this instance of ConnectedThread
+                    ((OpenGloveAppPage)contentPage).BluetoothMessageSended += this.OnBluetoothMessageSended; //This thread subscribe to UI thread for get commands
 
                 }
                 catch(System.IO.IOException e)
                 {
-                    mmInputStream.Close();
+                    mmInputStreamReader.Close();
                     mmOutputStream.Close();
-                    mmBufferedStream.Close();
                     Debug.WriteLine(e.Message);
+                }
+            }
+
+            // Method for raise the event 
+            protected virtual void OnBluetootDataReceived(long threadId, string message)
+            {
+                if (BluetoothDataReceived != null)
+                    BluetoothDataReceived(this, new BluetoothEventArgs() 
+                    { ThreadId = threadId, Message = message });
+            }
+
+            //Handle event from UI thread
+            public void OnBluetoothMessageSended(object source, BluetoothEventArgs e)
+            {
+                switch(e.What)
+                {
+                    case (OpenGloveAppPage.INITIALIZE_MOTORS):
+                        {
+                            Debug.WriteLine($"INITIALIZE_MOTORS: Initializing motors (thread: {this.Id})");
+                            string message = mMessageGenerator.InitializeMotor((Collection<int>)e.Pins);
+                            this.Write(message);
+                            break;
+                        }
+                    case (OpenGloveAppPage.ACTIVATE_MOTORS):
+                        {
+                            Debug.WriteLine($"ACTIVATE_MOTORS: Activating motors (thread: {this.Id})");
+                            Debug.WriteLine($"ValuesON: {((Collection<string>)e.ValuesON).Count}");
+                            string message = mMessageGenerator.ActivateMotor((Collection<int>)e.Pins, ((Collection<string>)e.ValuesON));
+                            this.Write(message);
+                            break;
+                        }
+                    case (OpenGloveAppPage.DISABLE_MOTORS):
+                        {
+                            Debug.WriteLine($"DISABLE_MOTORS: Disable motors (thread: {this.Id})");
+                            string message = mMessageGenerator.ActivateMotor((Collection<int>)e.Pins, ((Collection<string>)e.ValuesOFF));
+                            this.Write(message);
+                            break;
+                        }
+                    case (OpenGloveAppPage.FLEXOR_READ):
+                        {
+                            //Debug.WriteLine($"FLEXOR_READ: FOR READ PINS (thread: {this.Id})");
+                            //mFlexorPins = e.FlexorPins as Collection<int>;
+                            break;
+                        }
+                    default:
+                        {
+                            break; 
+                        }
                 }
             }
 
@@ -167,13 +196,9 @@ namespace OpenGloveApp.Droid
                 //TODO: capture data from bluetooth device
                 try
                 {
-                    Debug.WriteLine($"CONNECTED THREAD {this.Id}: Initializing motors");
-                    string message = mMessageGenerator.InitializeMotor(mPins);
-                    this.Write(message);
-
-                    Debug.WriteLine($"CONNECTED THREAD {this.Id}: Activating motors");
-                    message = mMessageGenerator.ActivateMotor(mPins, mValuesON);
-                    this.Write(message);
+                    //Debug.WriteLine($"CONNECTED THREAD {this.Id}: Initializing motors");
+                    //string message = mMessageGenerator.InitializeMotor(mPins);
+                    //this.Write(message);
                 }
                 catch(System.IO.IOException e)
                 {
@@ -183,21 +208,31 @@ namespace OpenGloveApp.Droid
 
                 // Keep listening to the InputStream whit a StreamReader until an exception occurs
                 string line;
-                int  READ_PIN = 2;
+
                 while (true){
                     try
                     {
+                        Debug.WriteLine($"ON WHILE: thread {this.Id}");
                         line = AnalogRead(mFlexorPins[0]);
                         if (line != null)
                         {
                             Debug.WriteLine($"Flexor pin {mFlexorPins[0]}: {line}");
-                            Android.OS.Message message = MainActivity.mUIHandler.ObtainMessage(READ_PIN, line);
-                            message.SendToTarget();
+                            //Android.OS.Message message = MainActivity.mUIHandler.ObtainMessage(READ_PIN, line);
+                            //message.SendToTarget();
+
+                            //Raise the event to UI thread, that need stay subscriber to this publisher thread
+                            //Send the current thread id and send Message
+                            OnBluetootDataReceived(this.Id, line);
+                        }
+                        else 
+                        {
+                            Debug.WriteLine($"BluetoothSocket is Disconnected");
+                            mmSocket.Connect();
                         }
                     }
-                    catch(System.IO.IOException e)
+                    catch(Java.IO.IOException e)
                     {
-                        Debug.WriteLine(e.Message);
+                        Debug.WriteLine($"CONNECTED THREAD {this.Id}: {e.Message}");
                     }
                 }
 
@@ -207,12 +242,11 @@ namespace OpenGloveApp.Droid
             {
                 string message = mMessageGenerator.AnalogRead(pin);
                 this.Write(message);
-
                 try
                 {
-                    return mmInputStream.ReadLine();
+                    return mmInputStreamReader.ReadLine();
                 }
-                catch (System.IO.IOException e)
+                catch (Exception e)
                 {
                     Debug.WriteLine(e.Message);
                     return null;
@@ -226,7 +260,7 @@ namespace OpenGloveApp.Droid
                     byte[] bytes = Encoding.ASCII.GetBytes(message);
                     mmOutputStream.Write(bytes, 0, bytes.Length);
                 }
-                catch(System.IO.IOException e)
+                catch(Java.IO.IOException e)
                 {
                     Debug.WriteLine(e.Message);
                 }
@@ -278,6 +312,11 @@ namespace OpenGloveApp.Droid
         {
             Debug.WriteLine("Hello World Droid");
             return "Hello World Droid";
+        }
+
+        public void ActivateMotor()
+        {
+            
         }
     }
 }

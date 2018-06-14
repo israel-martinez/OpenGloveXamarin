@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using OpenGloveApp.iOS;
 using OpenGloveApp.Models;
+using Xamarin.Forms;
 
 [assembly: Xamarin.Forms.Dependency(typeof(BluetoothManagerOG))]
 namespace OpenGloveApp.iOS
@@ -30,6 +31,16 @@ namespace OpenGloveApp.iOS
         }
 
         public Collection<BluetoothDeviceModel> GetAllPairedDevices()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OpenDeviceConnection(ContentPage contentPage, BluetoothDeviceModel bluetoothDevice)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ActivateMotor()
         {
             throw new NotImplementedException();
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using OpenGloveApp.Models;
+using Xamarin.Forms;
 
 namespace OpenGloveApp
 {
@@ -9,6 +10,8 @@ namespace OpenGloveApp
         void HelloWorld(string message); 
         string HelloWorld(); //Sample flow 
         Collection<BluetoothDeviceModel> GetAllPairedDevices();
-        void OpenDeviceConnection(BluetoothDeviceModel bluetoothDevice);
+        void OpenDeviceConnection(ContentPage contentPage, BluetoothDeviceModel bluetoothDevice);
+        void ActivateMotor();
+        //void DeactivateMotor();
     }
 }
