@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -20,12 +20,12 @@ namespace OpenGloveApp.Droid
         private const string mUUID = "1e966f42-52a8-45db-9735-5db0e21b881d";
         private BluetoothAdapter mBluetoothAdapter;
         private BluetoothDevice mDevice;
-        private Collection<BluetoothDeviceModel> mBoundedDevicesModel;
+        private List<BluetoothDeviceModel> mBoundedDevicesModel;
         private Hashtable mBoundedDevices = new Hashtable();
 
         public BluetoothManagerOG()
         {
-            mBoundedDevicesModel = new Collection<BluetoothDeviceModel>();
+            mBoundedDevicesModel = new List<BluetoothDeviceModel>();
             mBluetoothAdapter = BluetoothAdapter.DefaultAdapter;
         }
 
@@ -120,7 +120,8 @@ namespace OpenGloveApp.Droid
             private StreamReader mmInputStreamReader;
             private Stream mmOutputStream;
             private MessageGenerator mMessageGenerator = new MessageGenerator();
-            private Collection<int> mFlexorPins = new Collection<int> { 17 }; //TODO get this from OpenGloveApp
+            private List<int> mFlexorPins = new List<int> { 17 }; //TODO get this from OpenGloveApp
+            public int mEvaluation = OpenGloveAppPage.MOTOR_EVALUATION; //0;
 
             public ConnectedThread(ContentPage contentPage, BluetoothSocket bluetoothSocket)
             {
@@ -156,37 +157,49 @@ namespace OpenGloveApp.Droid
             {
                 switch(e.What)
                 {
-                    case (OpenGloveAppPage.INITIALIZE_MOTORS):
+                    case OpenGloveAppPage.INITIALIZE_MOTORS:
                         {
                             Debug.WriteLine($"INITIALIZE_MOTORS: Initializing motors (thread: {this.Id})");
-                            string message = mMessageGenerator.InitializeMotor((Collection<int>)e.Pins);
+                            string message = mMessageGenerator.InitializeMotor( ((List<int>)e.Pins).GetRange(0,2).ToArray() );
                             this.Write(message);
                             break;
                         }
-                    case (OpenGloveAppPage.ACTIVATE_MOTORS):
+                    case OpenGloveAppPage.ACTIVATE_MOTORS:
                         {
                             Debug.WriteLine($"ACTIVATE_MOTORS: Activating motors (thread: {this.Id})");
-                            Debug.WriteLine($"ValuesON: {((Collection<string>)e.ValuesON).Count}");
-                            string message = mMessageGenerator.ActivateMotor((Collection<int>)e.Pins, ((Collection<string>)e.ValuesON));
+                            Debug.WriteLine($"ValuesON: {((List<string>)e.ValuesON).Count}");
+                            Debug.WriteLine($"ValuesON.range(0,1): { ((List<string>)e.ValuesON).GetRange(0,2).ToArray() }");
+                            Debug.WriteLine($"Pins.range(0,1).Count: { ((List<int>)e.Pins).GetRange(0, 2).Count }");
+                            string message = mMessageGenerator.ActivateMotor( ((List<int>)e.Pins).GetRange(0,2).ToArray(), ((List<string>)e.ValuesON).GetRange(0,2).ToArray() );
                             this.Write(message);
                             break;
                         }
-                    case (OpenGloveAppPage.DISABLE_MOTORS):
+                    case OpenGloveAppPage.DISABLE_MOTORS:
                         {
                             Debug.WriteLine($"DISABLE_MOTORS: Disable motors (thread: {this.Id})");
-                            string message = mMessageGenerator.ActivateMotor((Collection<int>)e.Pins, ((Collection<string>)e.ValuesOFF));
+                            string message = mMessageGenerator.ActivateMotor(((List<int>)e.Pins).GetRange(0, 2).ToArray(), ((List<string>)e.ValuesOFF).GetRange(0, 2).ToArray() );
                             this.Write(message);
                             break;
                         }
-                    case (OpenGloveAppPage.FLEXOR_READ):
+                    case OpenGloveAppPage.FLEXOR_READ:
                         {
                             //Debug.WriteLine($"FLEXOR_READ: FOR READ PINS (thread: {this.Id})");
-                            //mFlexorPins = e.FlexorPins as Collection<int>;
+                            //mFlexorPins = e.FlexorPins as List<int>;
+                            break;
+                        }
+                    case OpenGloveAppPage.FLEXOR_EVALUATION:
+                        {
+                            mEvaluation = OpenGloveAppPage.FLEXOR_EVALUATION;
+                            break;
+                        }
+                    case OpenGloveAppPage.MOTOR_EVALUATION:
+                        {
+                            mEvaluation = OpenGloveAppPage.MOTOR_EVALUATION;
                             break;
                         }
                     default:
                         {
-                            break; 
+                            break;
                         }
                 }
             }
@@ -206,20 +219,70 @@ namespace OpenGloveApp.Droid
                     Debug.WriteLine(e.Message);
                 }
 
+                switch(mEvaluation)
+                {
+                    case OpenGloveAppPage.FLEXOR_EVALUATION:
+                        {
+                            FlexorTest(1000, 1, "latency-test", "flexor1XamarinGalaxy.csv");
+                            break;
+                        }
+                    case OpenGloveAppPage.MOTOR_EVALUATION:
+                        {
+                            MotorTest(1000, 5, "latency-test", "motor5XamarinGalaxy.csv");
+                            break;
+                        }
+                    default:
+                        {
+                            FlexorCapture();
+                            break;
+                        }
+                }
+            }
+
+            private void FlexorCapture()
+            {
                 // Keep listening to the InputStream whit a StreamReader until an exception occurs
                 string line;
+                while (true)
+                {
+                    try
+                    {
+                        line = AnalogRead(mFlexorPins[0]);
 
-                int samples = 1000;
+                        if (line != null)
+                        {
+                            //Raise the event to UI thread, that need stay subscriber to this publisher thread
+                            //Send the current thread id and send Message
+                            OnBluetootDataReceived(this.Id, line);
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"BluetoothSocket is Disconnected");
+                            mmSocket.Connect();
+                        }
+                    }
+                    catch (Java.IO.IOException e)
+                    {
+                        Debug.WriteLine($"CONNECTED THREAD {this.Id}: {e.Message}");
+                    }
+                }
+            }
+
+            private void FlexorTest(int samples, int flexors, String folderName, String fileName)
+            {
+                // Keep listening to the InputStream whit a StreamReader until an exception occurs
+                string line;
                 int counter = 0;
-                Collection<long> latencies = new Collection<long>();
-                IO.CSV csvWriter = new IO.CSV("latency-test", "flexor1XamarinGalaxy.csv");
+                List<long> latencies = new List<long>();
+                IO.CSV csvWriter = new IO.CSV(folderName, fileName);
 
                 Debug.WriteLine(csvWriter.ToString());
 
                 Stopwatch stopWatch = new Stopwatch(); // for capture elapsed time
                 TimeSpan ts;
 
-                while (true){
+                while (true)
+                {
                     try
                     {
                         stopWatch = new Stopwatch();
@@ -241,26 +304,78 @@ namespace OpenGloveApp.Droid
 
                         if (line != null)
                         {
-                            
+
                             //Raise the event to UI thread, that need stay subscriber to this publisher thread
                             //Send the current thread id and send Message
                             OnBluetootDataReceived(this.Id, line);
                         }
-                        else 
+                        else
                         {
                             Debug.WriteLine($"BluetoothSocket is Disconnected");
                             mmSocket.Connect();
                         }
                     }
-                    catch(Java.IO.IOException e)
+                    catch (Java.IO.IOException e)
                     {
                         Debug.WriteLine($"CONNECTED THREAD {this.Id}: {e.Message}");
                     }
                 }
 
                 csvWriter.Write(latencies, "latencies-ns");
+                Debug.WriteLine(csvWriter.ToString());    
+            }
+
+            private void MotorTest(int samples, int motors, string folderName, string fileName)
+            {
+                string message;
+                int counter = 0;
+                List<long> latencies = new List<long>();
+                List<int> pins = new List<int>(OpenGloveAppPage.mPins.GetRange(0, motors * 2));
+                List<string> valuesON = new List<string>(OpenGloveAppPage.mValuesON.GetRange(0, motors * 2));
+                List<string> valuesOFF = new List<string>(OpenGloveAppPage.mValuesOFF.GetRange(0, motors * 2));
+                IO.CSV csvWriter = new IO.CSV(folderName, fileName);
+
                 Debug.WriteLine(csvWriter.ToString());
 
+                Stopwatch stopWatch = new Stopwatch(); // for capture elapsed time
+                TimeSpan ts;
+
+                while (true)
+                {
+                    if (counter < samples)
+                    {
+                        try
+                        {
+                            stopWatch = new Stopwatch();
+                            stopWatch.Start();
+
+                            message = mMessageGenerator.ActivateMotor(pins, valuesON);
+                            this.Write(message); // Activate the motors
+
+                            message = mMessageGenerator.ActivateMotor(pins, valuesOFF);
+                            this.Write(message); // Disable the motors
+
+                            stopWatch.Stop();
+                            ts = stopWatch.Elapsed;
+
+                            latencies.Add(ts.Ticks * 100);
+                            if ((counter + 1) % 100 == 0) Debug.WriteLine("Counter: " + counter);
+                        }
+                        catch (Java.IO.IOException e)
+                        {
+                            e.PrintStackTrace();
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                    counter++;
+                }
+
+                csvWriter.Write(latencies, "latencies-ns");
+                Debug.WriteLine(csvWriter.ToString());
             }
 
             public string AnalogRead(int pin)
@@ -305,7 +420,7 @@ namespace OpenGloveApp.Droid
         }
 
 
-        public Collection<BluetoothDeviceModel> GetAllPairedDevices()
+        public List<BluetoothDeviceModel> GetAllPairedDevices()
         {
             mBoundedDevices.Clear();
             mBoundedDevicesModel.Clear();

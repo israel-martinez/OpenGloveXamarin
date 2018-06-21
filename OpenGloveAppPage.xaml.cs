@@ -1,6 +1,4 @@
 ﻿using Xamarin.Forms;
-using System.Diagnostics;
-using System.Collections.ObjectModel;
 using OpenGloveApp.Models;
 using System;
 using System.Collections.Generic;
@@ -18,15 +16,20 @@ namespace OpenGloveApp
         public const int DISABLE_MOTORS = 3;
         public const int FLEXOR_READ = 4;
 
-        // Vibe board: +11 y -12
-        public Collection<int> mPins = new Collection<int> { 11, 12 };
-        public Collection<string> mValuesON = new Collection<string> { "HIGH", "LOW" };
-        public Collection<string> mValuesOFF = new Collection<string> { "LOW", "LOW" };
+        public const int EVALUATION_DONE = 1000;
+        public const int FLEXOR_EVALUATION = 500;
+        public const int MOTOR_EVALUATION = 501;
+        public const int IMU_EVALUATION = 502;
+
+        // Vibe board: (+11 y -12), (+10 y -15), (+9 y -16), (+3 y -2), (+6, -8)
+        public static List<int> mPins = new List<int> { 11, 12, 10, 15, 9, 16, 3, 2, 6, 8 };
+        public static List<string> mValuesON = new List<string> { "HIGH", "LOW", "HIGH", "LOW", "HIGH", "LOW", "HIGH", "LOW", "HIGH", "LOW" };
+        public static List<string> mValuesOFF = new List<string> { "LOW", "LOW", "LOW", "LOW", "LOW", "LOW", "LOW", "LOW", "LOW", "LOW" };
 
         // Flexor pins: 17 and  + and -
-        public Collection<int> mFlexorPins = new Collection<int> { 17 };
-        public Collection<int> mFlexorMapping = new Collection<int> { 8 };
-        public Collection<string> mFlexorPinsMode = new Collection<string> { "OUTPUT" };
+        public List<int> mFlexorPins = new List<int> { 17 };
+        public List<int> mFlexorMapping = new List<int> { 8 };
+        public List<string> mFlexorPinsMode = new List<string> { "OUTPUT" };
 
         public OpenGloveAppPage()
         {

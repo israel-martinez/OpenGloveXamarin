@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Collections.Generic;
 using Android.OS;
 using Java.IO;
 
@@ -16,7 +16,7 @@ namespace OpenGloveApp.Droid.IO
             this.mFileName = mFileName;
         }
 
-        public void Write(Collection<long> values, string columnTitle)
+        public void Write(List<long> values, string columnTitle)
         {
             try
             {
