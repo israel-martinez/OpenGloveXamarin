@@ -42,7 +42,7 @@
             Text="{Binding Value}"
             Clicked="ButtonActivateMotor_Clicked"/>
 
-        <ListView x:Name="listViewBoundedDevices" 
+        <ListView x:Name="listViewBoundedDevices"
                   HasUnevenRows="true"
                   ItemTapped="Handle_ItemTappedAsync"
                   ItemSelected="Handle_ItemSelected">

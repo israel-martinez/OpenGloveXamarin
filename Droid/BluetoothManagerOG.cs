@@ -209,17 +209,39 @@ namespace OpenGloveApp.Droid
                 // Keep listening to the InputStream whit a StreamReader until an exception occurs
                 string line;
 
+                int samples = 1000;
+                int counter = 0;
+                Collection<long> latencies = new Collection<long>();
+                IO.CSV csvWriter = new IO.CSV("latency-test", "flexor1XamarinGalaxy.csv");
+
+                Debug.WriteLine(csvWriter.ToString());
+
+                Stopwatch stopWatch = new Stopwatch(); // for capture elapsed time
+                TimeSpan ts;
+
                 while (true){
                     try
                     {
-                        Debug.WriteLine($"ON WHILE: thread {this.Id}");
+                        stopWatch = new Stopwatch();
+                        stopWatch.Start();
                         line = AnalogRead(mFlexorPins[0]);
+                        stopWatch.Stop();
+                        ts = stopWatch.Elapsed;
+
+                        if (counter < samples)
+                        {
+                            latencies.Add(ts.Ticks * 100); // nanoseconds https://msdn.microsoft.com/en-us/library/system.datetime.ticks(v=vs.110).aspx
+                            if ((counter + 1) % 100 == 0) Debug.WriteLine("Counter: " + counter);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                        counter++;
+
                         if (line != null)
                         {
-                            Debug.WriteLine($"Flexor pin {mFlexorPins[0]}: {line}");
-                            //Android.OS.Message message = MainActivity.mUIHandler.ObtainMessage(READ_PIN, line);
-                            //message.SendToTarget();
-
+                            
                             //Raise the event to UI thread, that need stay subscriber to this publisher thread
                             //Send the current thread id and send Message
                             OnBluetootDataReceived(this.Id, line);
@@ -235,6 +257,9 @@ namespace OpenGloveApp.Droid
                         Debug.WriteLine($"CONNECTED THREAD {this.Id}: {e.Message}");
                     }
                 }
+
+                csvWriter.Write(latencies, "latencies-ns");
+                Debug.WriteLine(csvWriter.ToString());
 
             }
 
