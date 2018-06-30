@@ -121,7 +121,7 @@ namespace OpenGloveApp.Droid
             private Stream mmOutputStream;
             private MessageGenerator mMessageGenerator = new MessageGenerator();
             private List<int> mFlexorPins = new List<int> { 17 }; //TODO get this from OpenGloveApp
-            public int mEvaluation = OpenGloveAppPage.MOTOR_EVALUATION; //0;
+            public int mEvaluation = 0; //OpenGloveAppPage.FLEXOR_EVALUATION; //OpenGloveAppPage.MOTOR_EVALUATION;
 
             public ConnectedThread(ContentPage contentPage, BluetoothSocket bluetoothSocket)
             {
@@ -168,8 +168,8 @@ namespace OpenGloveApp.Droid
                         {
                             Debug.WriteLine($"ACTIVATE_MOTORS: Activating motors (thread: {this.Id})");
                             Debug.WriteLine($"ValuesON: {((List<string>)e.ValuesON).Count}");
-                            Debug.WriteLine($"ValuesON.range(0,1): { ((List<string>)e.ValuesON).GetRange(0,2).ToArray() }");
-                            Debug.WriteLine($"Pins.range(0,1).Count: { ((List<int>)e.Pins).GetRange(0, 2).Count }");
+                            Debug.WriteLine($"ValuesON.range(0,2): { ((List<string>)e.ValuesON).GetRange(0,2).ToArray() }");
+                            Debug.WriteLine($"Pins.range(0,2).Count: { ((List<int>)e.Pins).GetRange(0, 2).Count }");
                             string message = mMessageGenerator.ActivateMotor( ((List<int>)e.Pins).GetRange(0,2).ToArray(), ((List<string>)e.ValuesON).GetRange(0,2).ToArray() );
                             this.Write(message);
                             break;
@@ -223,12 +223,12 @@ namespace OpenGloveApp.Droid
                 {
                     case OpenGloveAppPage.FLEXOR_EVALUATION:
                         {
-                            FlexorTest(1000, 1, "latency-test", "flexor1XamarinGalaxy.csv");
+                            FlexorTest(1000, 1, "latency-test", "flexor_1XamarinGalaxy.csv");
                             break;
                         }
                     case OpenGloveAppPage.MOTOR_EVALUATION:
                         {
-                            MotorTest(1000, 5, "latency-test", "motor5XamarinGalaxy.csv");
+                            MotorTest(1000, 5, "latency-test", "motor_5XamarinGalaxy.csv");
                             break;
                         }
                     default:
@@ -285,6 +285,7 @@ namespace OpenGloveApp.Droid
                 {
                     try
                     {
+                        Debug.WriteLine("Counter: " + counter);
                         stopWatch = new Stopwatch();
                         stopWatch.Start();
                         line = AnalogRead(mFlexorPins[0]);
